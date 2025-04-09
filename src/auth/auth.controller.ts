@@ -19,8 +19,21 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  register(@Body() data: RegisterDto) {
-    return this.authService.register(data);
+  async register(
+    @Body() data: RegisterDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    const result = await this.authService.register(data);
+
+    res.cookie('jwt', result.access_token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: false,
+      path: '/',
+      maxAge: 1000 * 60 * 60, // 1 hora
+    });
+
+    return result.user;
   }
 
   @Post('login')
@@ -34,6 +47,7 @@ export class AuthController {
       httpOnly: true,
       sameSite: 'lax', // ou 'none' se estiver em domínios diferentes
       secure: false,
+      path: '/',
       maxAge: 1000 * 60 * 60, // 1 hora
     });
 
