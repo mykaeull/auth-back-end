@@ -1,8 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Scheduling } from 'src/entities/scheduling.entity';
-import { Repository } from 'typeorm';
+import { FindOptionsWhere, ILike, Repository } from 'typeorm';
 import { CreateSchedulingDto } from './dto/create-scheduling.dto';
+import { PaginatedResponseType } from 'src/common/types/paginated-response.type';
 
 @Injectable()
 export class SchedulingService {
@@ -34,6 +35,52 @@ export class SchedulingService {
     });
 
     return await this.schedulingRepository.save(scheduling);
+  }
+
+  async findAllPaginated(
+    page = 1,
+    pageSize = 10,
+    filters?: Omit<Partial<Scheduling>, 'paid' | 'type'> & {
+      paid?: 'pago' | 'nao_pago';
+      type?: 'corte' | 'barba' | 'corteEbarba';
+    },
+  ): Promise<PaginatedResponseType<Scheduling>> {
+    const skip = (page - 1) * pageSize;
+
+    const where: FindOptionsWhere<Scheduling> = {};
+
+    if (filters?.name) {
+      where.name = ILike(`%${filters.name}%`);
+    }
+    if (filters?.date) {
+      where.date = filters.date;
+    }
+    if (filters?.payment_method) {
+      where.payment_method = filters.payment_method;
+    }
+    if (filters?.type) {
+      where.type =
+        filters.type === 'corteEbarba' ? 'corte&barba' : filters.type;
+    }
+    if (filters?.paid === 'pago') {
+      where.paid = true;
+    } else if (filters?.paid === 'nao_pago') {
+      where.paid = false;
+    }
+
+    const [items, itemsTotal] = await this.schedulingRepository.findAndCount({
+      where,
+      skip,
+      take: pageSize,
+      order: { date: 'DESC', time: 'ASC' },
+    });
+
+    return {
+      items,
+      itemsTotal,
+      page,
+      pageSize,
+    };
   }
 
   async getAvailableTimes(date: string): Promise<string[]> {
