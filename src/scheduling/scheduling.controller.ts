@@ -3,7 +3,6 @@ import { CreateSchedulingDto } from './dto/create-scheduling.dto';
 import { SchedulingService } from './scheduling.service';
 import { JwtAuthGuard } from 'src/auth/jwt-auth-guard';
 
-@UseGuards(JwtAuthGuard)
 @Controller('scheduling')
 export class SchedulingController {
   constructor(private readonly schedulingService: SchedulingService) {}
@@ -13,7 +12,7 @@ export class SchedulingController {
     return this.schedulingService.create(body);
   }
 
-  @Get()
+  @Get('all')
   @UseGuards(JwtAuthGuard)
   findAllPaginated(
     @Query('page') page?: string,

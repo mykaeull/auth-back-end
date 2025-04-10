@@ -1,16 +1,7 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Req,
-  Res,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
-import { Response } from 'express';
 import { JwtAuthGuard } from './jwt-auth-guard';
 import { Request } from 'express';
 
@@ -19,39 +10,15 @@ export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Post('register')
-  async register(
-    @Body() data: RegisterDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async register(@Body() data: RegisterDto) {
     const result = await this.authService.register(data);
-
-    res.cookie('jwt', result.access_token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: false,
-      path: '/',
-      maxAge: 1000 * 60 * 60, // 1 hora
-    });
-
-    return result.user;
+    return result;
   }
 
   @Post('login')
-  async login(
-    @Body() data: LoginDto,
-    @Res({ passthrough: true }) res: Response,
-  ) {
+  async login(@Body() data: LoginDto) {
     const result = await this.authService.login(data);
-
-    res.cookie('jwt', result.access_token, {
-      httpOnly: true,
-      sameSite: 'lax', // ou 'none' se estiver em domínios diferentes
-      secure: false,
-      path: '/',
-      maxAge: 1000 * 60 * 60, // 1 hora
-    });
-
-    return result.user;
+    return result;
   }
 
   @UseGuards(JwtAuthGuard)
