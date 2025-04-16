@@ -1,4 +1,11 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Column,
+  Entity,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
+import { User } from './user.entity';
 
 @Entity('scheduling')
 export class Scheduling {
@@ -28,4 +35,8 @@ export class Scheduling {
 
   @Column()
   contact: string;
+
+  @ManyToOne(() => User, (user) => user.schedulings, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'user_id' }) // nome da coluna no banco
+  user: User;
 }

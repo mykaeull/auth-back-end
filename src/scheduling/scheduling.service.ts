@@ -1,18 +1,21 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Scheduling } from 'src/entities/scheduling.entity';
-import { FindOptionsWhere, ILike, Repository } from 'typeorm';
+import { FindOptionsWhere, ILike, Repository, In } from 'typeorm';
 import { CreateSchedulingDto } from './dto/create-scheduling.dto';
 import { PaginatedResponseType } from 'src/common/types/paginated-response.type';
+import { User } from 'src/entities/user.entity';
 
 @Injectable()
 export class SchedulingService {
   constructor(
     @InjectRepository(Scheduling)
     private readonly schedulingRepository: Repository<Scheduling>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
   ) {}
 
-  async create(data: CreateSchedulingDto) {
+  async create(data: CreateSchedulingDto, userId: number) {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
@@ -24,6 +27,12 @@ export class SchedulingService {
       throw new Error('Não é possível agendar para datas anteriores à atual.');
     }
 
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+
+    if (!user) {
+      throw new Error('Usuário não encontrado.');
+    }
+
     const amount = data.type === 'corte' ? 30 : data.type === 'barba' ? 15 : 40;
 
     const paid = data.payment_method === 'pix';
@@ -32,6 +41,7 @@ export class SchedulingService {
       ...data,
       amount,
       paid,
+      user,
     });
 
     return await this.schedulingRepository.save(scheduling);
@@ -40,14 +50,18 @@ export class SchedulingService {
   async findAllPaginated(
     page = 1,
     pageSize = 10,
-    filters?: Omit<Partial<Scheduling>, 'paid' | 'type'> & {
+    userId: number,
+    filters?: Omit<Partial<Scheduling>, 'paid' | 'type' | 'payment_method'> & {
       paid?: 'pago' | 'nao_pago';
-      type?: 'corte' | 'barba' | 'corteEbarba';
+      type?: string; // vem como 'barba,corte'
+      payment_method?: string; // vem como 'pix,espécie'
     },
   ): Promise<PaginatedResponseType<Scheduling>> {
     const skip = (page - 1) * pageSize;
 
-    const where: FindOptionsWhere<Scheduling> = {};
+    const where: FindOptionsWhere<Scheduling> = {
+      user: { id: userId },
+    };
 
     if (filters?.name) {
       where.name = ILike(`%${filters.name}%`);
@@ -56,11 +70,18 @@ export class SchedulingService {
       where.date = filters.date;
     }
     if (filters?.payment_method) {
-      where.payment_method = filters.payment_method;
+      const methods = filters.payment_method.split(
+        ',',
+      ) as Scheduling['payment_method'][];
+      where.payment_method = In(methods);
     }
     if (filters?.type) {
-      where.type =
-        filters.type === 'corteEbarba' ? 'corte&barba' : filters.type;
+      const types = filters.type
+        .split(',')
+        .map((t) =>
+          t === 'corteEbarba' ? 'corte&barba' : t,
+        ) as Scheduling['type'][];
+      where.type = In(types);
     }
     if (filters?.paid === 'pago') {
       where.paid = true;
