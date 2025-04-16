@@ -104,7 +104,7 @@ export class SchedulingService {
     };
   }
 
-  async getAvailableTimes(date: string): Promise<string[]> {
+  async getAvailableTimes(date: string, userId: number): Promise<string[]> {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
       return []; // validação básica
     }
@@ -122,7 +122,10 @@ export class SchedulingService {
     const currentMinutes = today.getMinutes();
 
     const agendamentos = await this.schedulingRepository.find({
-      where: { date },
+      where: {
+        date,
+        user: { id: userId },
+      },
     });
 
     const horariosIndisponiveis = agendamentos.map((ag) => ag.time);
@@ -156,5 +159,29 @@ export class SchedulingService {
     }
 
     return horariosDisponiveis;
+  }
+
+  async markAsPaid(id: number, userId: number) {
+    const scheduling = await this.schedulingRepository.findOne({
+      where: {
+        id,
+        user: { id: userId },
+      },
+    });
+
+    if (!scheduling) {
+      throw new Error(
+        'Agendamento não encontrado ou não pertence ao usuário logado.',
+      );
+    }
+
+    if (scheduling.paid) {
+      return { message: 'Este agendamento já está marcado como pago.' };
+    }
+
+    scheduling.paid = true;
+    await this.schedulingRepository.save(scheduling);
+
+    return { message: 'Status atualizado para pago com sucesso.' };
   }
 }

@@ -50,7 +50,20 @@ export class SchedulingController {
   }
 
   @Get('available-times')
-  getAvailableTimes(@Query('date') date: string) {
-    return this.schedulingService.getAvailableTimes(date);
+  getAvailableTimes(
+    @Query('date') date: string,
+    @Query('userId') userId: string,
+  ) {
+    return this.schedulingService.getAvailableTimes(date, Number(userId));
+  }
+
+  @Post(':id/pay')
+  @UseGuards(JwtAuthGuard)
+  markAsPaid(
+    @Param('id') id: string,
+    @Req() req: Request & { user: JwtPayload },
+  ) {
+    const userId = req.user.userId;
+    return this.schedulingService.markAsPaid(+id, userId);
   }
 }
